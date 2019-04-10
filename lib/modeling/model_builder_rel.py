@@ -28,6 +28,34 @@ import utils.resnet_weights_helper as resnet_utils
 
 logger = logging.getLogger(__name__)
 
+def _augment_gt_boxes_by_perturbation(unique_gt_boxes, im_width, im_height):
+    num_gt = unique_gt_boxes.shape[0]
+    num_rois = 1000
+    rois = np.zeros((num_rois, 4), dtype=np.float32)
+    cnt = 0
+    for i in range(num_gt):
+        box = unique_gt_boxes[i]
+        box_width = box[2] - box[0] + 1
+        box_height = box[3] - box[1] + 1
+        x_offset_max = (box_width - 1) // 2
+        y_offset_max = (box_height - 1) // 2
+        for _ in range(num_rois // num_gt):
+            x_min_offset = np.random.uniform(low=-x_offset_max, high=x_offset_max)
+            y_min_offset = np.random.uniform(low=-y_offset_max, high=y_offset_max)
+            x_max_offset = np.random.uniform(low=-x_offset_max, high=x_offset_max)
+            y_max_offset = np.random.uniform(low=-y_offset_max, high=y_offset_max)
+
+            new_x_min = min(max(np.round(box[0] + x_min_offset), 0), im_width - 1)
+            new_y_min = min(max(np.round(box[1] + y_min_offset), 0), im_height - 1)
+            new_x_max = min(max(np.round(box[2] + x_max_offset), 0), im_width - 1)
+            new_y_max = min(max(np.round(box[3] + y_max_offset), 0), im_height - 1)
+
+            new_box = np.array(
+                [new_x_min, new_y_min, new_x_max, new_y_max]).astype(np.float32)
+            rois[cnt] = new_box
+            cnt += 1
+
+    return rois
 
 def get_func(func_name):
     """Helper to return a function object by name. func_name must identify a
@@ -210,14 +238,14 @@ class Generalized_RCNN(nn.Module):
             for p in self.Box_Outs.parameters():
                 p.requires_grad = False
 
-    def forward(self, data, im_info, dataset_name=None, roidb=None, use_gt_labels=False, **rpn_kwargs):
+    def forward(self, data, im_info, dataset_name=None, roidb=None, use_gt_labels=False, use_gt_boxes=True, **rpn_kwargs):
         if cfg.PYTORCH_VERSION_LESS_THAN_040:
-            return self._forward(data, im_info, dataset_name, roidb, use_gt_labels, **rpn_kwargs)
+            return self._forward(data, im_info, dataset_name, roidb, use_gt_labels, use_gt_boxes, **rpn_kwargs)
         else:
             with torch.set_grad_enabled(self.training):
-                return self._forward(data, im_info, dataset_name, roidb, use_gt_labels, **rpn_kwargs)
+                return self._forward(data, im_info, dataset_name, roidb, use_gt_labels, use_gt_boxes, **rpn_kwargs)
 
-    def _forward(self, data, im_info, dataset_name=None, roidb=None, use_gt_labels=False, **rpn_kwargs):
+    def _forward(self, data, im_info, dataset_name=None, roidb=None, use_gt_labels=False, use_gt_boxes=True, **rpn_kwargs):
         im_data = data
         if self.training:
             roidb = list(map(lambda x: blob_utils.deserialize(x)[0], roidb))
@@ -247,11 +275,38 @@ class Generalized_RCNN(nn.Module):
         # now go through the predicate branch
         use_relu = False if cfg.MODEL.NO_FC7_RELU else True
         if self.training:
-            fg_inds = np.where(rpn_ret['labels_int32'] > 0)[0]
-            det_rois = rpn_ret['rois'][fg_inds]
-            det_labels = rpn_ret['labels_int32'][fg_inds]
-            det_scores = F.softmax(cls_score[fg_inds], dim=1)
-            rel_ret = self.RelPN(det_rois, det_labels, det_scores, im_info, dataset_name, roidb)
+            if use_gt_boxes:
+                assert len(roidb) == 1
+                im_scale = im_info.data.numpy()[:, 2][0]
+                im_w = im_info.data.numpy()[:, 1][0]
+                im_h = im_info.data.numpy()[:, 0][0]
+                sbj_boxes = roidb[0]['sbj_gt_boxes']
+                obj_boxes = roidb[0]['obj_gt_boxes']
+                sbj_rois = sbj_boxes * im_scale
+                obj_rois = obj_boxes * im_scale
+                repeated_batch_idx = 0 * blob_utils.ones((sbj_rois.shape[0], 1))
+                sbj_rois = np.hstack((repeated_batch_idx, sbj_rois))
+                obj_rois = np.hstack((repeated_batch_idx, obj_rois))
+                print('sbj_rois before perturbation:', sbj_boxes.shape)
+                print('obj_rois before perturbation:', obj_boxes.shape)
+                sbj_rois = _augment_gt_boxes_by_perturbation(sbj_rois, im_w, im_h)
+                obj_rois = _augment_gt_boxes_by_perturbation(obj_rois, im_w, im_h)
+                rel_rois = box_utils.rois_union(sbj_rois, obj_rois)
+                print('sbj_rois after perturbation:', sbj_boxes.shape)
+                print('obj_rois after perturbation:', obj_boxes.shape)
+                print('rel_rois:', rel_rois.shape)
+
+
+                rel_ret = {}
+                rel_ret['sbj_rois'] = sbj_rois
+                rel_ret['obj_rois'] = obj_rois
+                rel_ret['rel_rois'] = rel_rois
+            else:
+                fg_inds = np.where(rpn_ret['labels_int32'] > 0)[0]
+                det_rois = rpn_ret['rois'][fg_inds]
+                det_labels = rpn_ret['labels_int32'][fg_inds]
+                det_scores = F.softmax(cls_score[fg_inds], dim=1)
+                rel_ret = self.RelPN(det_rois, det_labels, det_scores, im_info, dataset_name, roidb)
             sbj_feat = self.Box_Head(blob_conv, rel_ret, rois_name='sbj_rois', use_relu=use_relu)
             obj_feat = self.Box_Head(blob_conv, rel_ret, rois_name='obj_rois', use_relu=use_relu)
         else:

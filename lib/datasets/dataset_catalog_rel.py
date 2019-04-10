@@ -61,6 +61,28 @@ DATASETS = {
         ANN_FN3:
             _DATA_DIR + '/vg/predicates.json',
     },
+    # VG80k dataset
+    'vg80k_train': {
+        IM_DIR:
+            _DATA_DIR + '/vg/VG_100K',
+        ANN_FN:
+            _DATA_DIR + '/vg_80k/detections_train.json',
+        ANN_FN2:
+            _DATA_DIR + '/vg_80k/rel_annotations_train.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg_80k/predicates.json',
+    },
+    # for now vg_val is identical to vg_test
+    'vg80k_val': {
+        IM_DIR:
+            _DATA_DIR + '/vg/VG_100K',
+        ANN_FN:
+            _DATA_DIR + '/vg_80k/detections_val.json',
+        ANN_FN2:
+            _DATA_DIR + '/vg_80k/rel_annotations_val.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg_80k/predicates.json',
+    },
     # VRD dataset
     'vrd_train': {
         IM_DIR:

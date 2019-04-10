@@ -94,6 +94,11 @@ if __name__ == '__main__':
         cfg.TEST.DATASETS = ('vrd_val',)
         cfg.MODEL.NUM_CLASSES = 101
         cfg.MODEL.NUM_PRD_CLASSES = 70  # exclude background
+    elif args.dataset == "vg_80k":
+        cfg.TEST.DATASETS = ('vg80k_val',)
+        cfg.MODEL.NUM_CLASSES = 53304
+        cfg.MODEL.NUM_PRD_CLASSES = 29086  # exclude background
+
     else:  # For subprocess call
         assert cfg.TEST.DATASETS, 'cfg.TEST.DATASETS shouldn\'t be empty'
     assert_and_infer_cfg()

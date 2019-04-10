@@ -159,6 +159,11 @@ def main():
         cfg.TRAIN.DATASETS = ('vg_train',)
         cfg.MODEL.NUM_CLASSES = 151
         cfg.MODEL.NUM_PRD_CLASSES = 50  # exclude background
+    elif args.dataset == "vg_80k":
+        cfg.TRAIN.DATASETS = ('vg80k_train',)
+        cfg.MODEL.NUM_CLASSES = 53304
+        cfg.MODEL.NUM_PRD_CLASSES = 29086  # exclude background
+
     else:
         raise ValueError("Unexpected args.dataset: {}".format(args.dataset))
 
@@ -256,7 +261,7 @@ def main():
 
     if cfg.CUDA:
         maskRCNN.cuda()
-        
+
     ### Optimizer ###
     # record backbone params, i.e., conv_body and box_head params
     gn_params = []
@@ -425,11 +430,11 @@ def main():
                 except StopIteration:
                     dataiterator = iter(dataloader)
                     input_data = next(dataiterator)
-                
+
                 for key in input_data:
                     if key != 'roidb': # roidb is a list of ndarrays with inconsistent length
                         input_data[key] = list(map(Variable, input_data[key]))
-                
+
                 net_outputs = maskRCNN(**input_data)
                 training_stats.UpdateIterStats(net_outputs, inner_iter)
                 loss = net_outputs['total_loss']

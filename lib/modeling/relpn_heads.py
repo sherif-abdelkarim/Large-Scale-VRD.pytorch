@@ -51,8 +51,7 @@ class single_scale_relpn_outputs(nn.Module):
         im_info: (CPU Variable)
         roidb: (list of ndarray)
         """
-        
-        # Get pairwise proposals first
+            # Get pairwise proposals first
         if roidb is not None:
             # we always feed one image per batch during training
             assert len(roidb) == 1

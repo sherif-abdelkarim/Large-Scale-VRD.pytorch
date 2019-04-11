@@ -67,5 +67,18 @@ DATASETS = {
             _DATA_DIR + '/vrd/json_dataset/val_images',
         ANN_FN:
             _DATA_DIR + '/vrd/json_dataset/detections_val.json',
-    }
+    },
+    # VG_1600 dataset
+    'vg_1600_train': {
+        IM_DIR:
+            _DATA_DIR + '/vg/VG_100K',
+        ANN_FN:
+            _DATA_DIR + '/vg_1600/detections_train.json',
+    },
+    'vg_1600_test': {
+        IM_DIR:
+            _DATA_DIR + '/vg/VG_100K',
+        ANN_FN:
+            _DATA_DIR + '/vg_1600/detections_test.json',
+    },
 }

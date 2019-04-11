@@ -98,3 +98,9 @@ def box_filter(boxes, must_overlap=False):
     else:
         possible_boxes = np.column_stack(np.where(all_possib))
     return possible_boxes
+
+
+if __name__ == '__main__':
+    fg, bg = get_rel_counts('vg', must_overlap=False)
+    print('fg.shape: ', fg.shape)
+    print('bg.shape: ', bg.shape)

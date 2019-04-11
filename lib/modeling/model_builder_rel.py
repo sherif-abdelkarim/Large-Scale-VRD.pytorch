@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _augment_gt_boxes_by_perturbation(unique_gt_boxes, im_width, im_height):
     num_gt = unique_gt_boxes.shape[0]
-    num_rois = 1000
+    num_rois = 100
     rois = np.zeros((num_rois, 4), dtype=np.float32)
     cnt = 0
     for i in range(num_gt):
@@ -154,6 +154,20 @@ class Generalized_RCNN(nn.Module):
         if cfg.RPN.RPN_ON:
             self.RPN = rpn_heads.generic_rpn_outputs(
                 self.Conv_Body.dim_out, self.Conv_Body.spatial_scale)
+            
+        if cfg.FPN.FPN_ON:
+            # Only supports case when RPN and ROI min levels are the same
+            assert cfg.FPN.RPN_MIN_LEVEL == cfg.FPN.ROI_MIN_LEVEL
+            # RPN max level can be >= to ROI max level
+            assert cfg.FPN.RPN_MAX_LEVEL >= cfg.FPN.ROI_MAX_LEVEL
+            # FPN RPN max level might be > FPN ROI max level in which case we
+            # need to discard some leading conv blobs (blobs are ordered from
+            # max/coarsest level to min/finest level)
+            self.num_roi_levels = cfg.FPN.ROI_MAX_LEVEL - cfg.FPN.ROI_MIN_LEVEL + 1
+
+            # Retain only the spatial scales that will be used for RoI heads. `Conv_Body.spatial_scale`
+            # may include extra scales that are used for RPN proposals, but not for RoI heads.
+            self.Conv_Body.spatial_scale = self.Conv_Body.spatial_scale[-self.num_roi_levels:]
 
         # BBOX Branch
         self.Box_Head = get_func(cfg.FAST_RCNN.ROI_BOX_HEAD)(
@@ -262,9 +276,12 @@ class Generalized_RCNN(nn.Module):
         blob_conv_prd = self.Prd_RCNN.Conv_Body(im_data)
 
         rpn_ret = self.RPN(blob_conv, im_info, roidb)
-
-        if not self.training:
-            return_dict['blob_conv'] = blob_conv
+        
+        if cfg.FPN.FPN_ON:
+            # Retain only the blobs that will be used for RoI heads. `blob_conv` may include
+            # extra blobs that are used for RPN proposals, but not for RoI heads.
+            blob_conv = blob_conv[-self.num_roi_levels:]
+            blob_conv_prd = blob_conv_prd[-self.num_roi_levels:]
 
         if cfg.MODEL.SHARE_RES5 and self.training:
             box_feat, res5_feat = self.Box_Head(blob_conv, rpn_ret, use_relu=True)
@@ -276,31 +293,21 @@ class Generalized_RCNN(nn.Module):
         use_relu = False if cfg.MODEL.NO_FC7_RELU else True
         if self.training:
             if use_gt_boxes:
+                # we always feed one image per batch during training
                 assert len(roidb) == 1
                 im_scale = im_info.data.numpy()[:, 2][0]
                 im_w = im_info.data.numpy()[:, 1][0]
                 im_h = im_info.data.numpy()[:, 0][0]
                 sbj_boxes = roidb[0]['sbj_gt_boxes']
                 obj_boxes = roidb[0]['obj_gt_boxes']
-                sbj_rois = sbj_boxes * im_scale
-                obj_rois = obj_boxes * im_scale
-                repeated_batch_idx = 0 * blob_utils.ones((sbj_rois.shape[0], 1))
-                sbj_rois = np.hstack((repeated_batch_idx, sbj_rois))
-                obj_rois = np.hstack((repeated_batch_idx, obj_rois))
-                print('sbj_rois before perturbation:', sbj_boxes.shape)
-                print('obj_rois before perturbation:', obj_boxes.shape)
-                sbj_rois = _augment_gt_boxes_by_perturbation(sbj_rois, im_w, im_h)
-                obj_rois = _augment_gt_boxes_by_perturbation(obj_rois, im_w, im_h)
-                rel_rois = box_utils.rois_union(sbj_rois, obj_rois)
-                print('sbj_rois after perturbation:', sbj_boxes.shape)
-                print('obj_rois after perturbation:', obj_boxes.shape)
-                print('rel_rois:', rel_rois.shape)
-
-
-                rel_ret = {}
-                rel_ret['sbj_rois'] = sbj_rois
-                rel_ret['obj_rois'] = obj_rois
-                rel_ret['rel_rois'] = rel_rois
+                sbj_all_boxes = _augment_gt_boxes_by_perturbation(sbj_boxes, im_w, im_h)
+                obj_all_boxes = _augment_gt_boxes_by_perturbation(obj_boxes, im_w, im_h)
+                det_all_boxes = np.vstack((sbj_all_boxes, obj_all_boxes))
+                det_all_boxes = np.unique(det_all_boxes, axis=0)
+                det_all_rois = det_all_boxes * im_scale
+                repeated_batch_idx = 0 * blob_utils.ones((det_all_rois.shape[0], 1))
+                det_all_rois = np.hstack((repeated_batch_idx, det_all_rois))
+                rel_ret = self.RelPN(det_all_rois, None, None, im_info, dataset_name, roidb)
             else:
                 fg_inds = np.where(rpn_ret['labels_int32'] > 0)[0]
                 det_rois = rpn_ret['rois'][fg_inds]
@@ -426,8 +433,13 @@ class Generalized_RCNN(nn.Module):
                 if (k.startswith('rpn_cls_logits') or k.startswith('rpn_bbox_pred'))
             ))
             loss_rpn_cls, loss_rpn_bbox = rpn_heads.generic_rpn_losses(**rpn_kwargs)
-            return_dict['losses']['loss_rpn_cls'] = loss_rpn_cls
-            return_dict['losses']['loss_rpn_bbox'] = loss_rpn_bbox
+            if cfg.FPN.FPN_ON:
+                for i, lvl in enumerate(range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1)):
+                    return_dict['losses']['loss_rpn_cls_fpn%d' % lvl] = loss_rpn_cls[i]
+                    return_dict['losses']['loss_rpn_bbox_fpn%d' % lvl] = loss_rpn_bbox[i]
+            else:
+                return_dict['losses']['loss_rpn_cls'] = loss_rpn_cls
+                return_dict['losses']['loss_rpn_bbox'] = loss_rpn_bbox
             # bbox loss
             loss_cls, loss_bbox, accuracy_cls = fast_rcnn_heads.fast_rcnn_losses(
                 cls_score, bbox_pred, rpn_ret['labels_int32'], rpn_ret['bbox_targets'],

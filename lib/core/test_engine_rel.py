@@ -28,7 +28,6 @@ import numpy as np
 from numpy import linalg as la
 import os
 import yaml
-import gensim
 import json
 from six.moves import cPickle as pickle
 
@@ -140,6 +139,7 @@ def test_net_on_dataset(
     test_timer.toc()
     logger.info('Total inference time: {:.3f}s'.format(test_timer.average_time))
     
+    # if args.do_val:
     logger.info('Starting evaluation now...')
     task_evaluation.eval_rel_results(all_results, output_dir, args.do_val)
     

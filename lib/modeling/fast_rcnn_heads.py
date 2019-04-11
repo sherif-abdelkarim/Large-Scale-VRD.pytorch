@@ -1,3 +1,5 @@
+import logging
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +9,8 @@ from torch.autograd import Variable
 from core.config import cfg
 import nn as mynn
 import utils.net as net_utils
+
+logger = logging.getLogger(__name__)
 
 
 class fast_rcnn_outputs(nn.Module):

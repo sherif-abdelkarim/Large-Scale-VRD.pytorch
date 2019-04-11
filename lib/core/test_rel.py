@@ -34,7 +34,6 @@ from collections import defaultdict
 from six.moves import cPickle as pickle
 import cv2
 import numpy as np
-import pycocotools.mask as mask_util
 
 from torch.autograd import Variable
 import torch

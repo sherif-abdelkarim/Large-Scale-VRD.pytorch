@@ -28,83 +28,75 @@ topk = 100
 
 def eval_rel_results(all_results, output_dir, do_val):
     
-    if cfg.TEST.DATASETS[0].find('vg') >= 0:
-        prd_k_set = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20)
-    elif cfg.TEST.DATASETS[0].find('vrd') >= 0:
-        prd_k_set = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 70)
-    else:
-        prd_k_set = (1, 2, 3, 4, 5, 6, 7, 8, 9)
-        
-    if cfg.TEST.DATASETS[0].find('vg') >= 0:
-        eval_sets = (False,)
-    else:
-        eval_sets = (False, True)
+    if do_val:
+        if cfg.TEST.DATASETS[0].find('vg') >= 0:
+            prd_k_set = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20)
+        elif cfg.TEST.DATASETS[0].find('vrd') >= 0:
+            prd_k_set = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 70)
+        else:
+            prd_k_set = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 
-    for phrdet in eval_sets:
-        eval_metric = 'phrdet' if phrdet else 'reldet'  
-        print('{}:'.format(eval_metric))
+        if cfg.TEST.DATASETS[0].find('vg') >= 0:
+            eval_sets = (False,)
+        else:
+            eval_sets = (False, True)
 
-        for prd_k in prd_k_set:
-            print('prd_k = {}:'.format(prd_k))
+        for phrdet in eval_sets:
+            eval_metric = 'phrdet' if phrdet else 'reldet'  
+            print('{}:'.format(eval_metric))
 
-            recalls = {20: 0, 50: 0, 100: 0}
-            if do_val:
+            for prd_k in prd_k_set:
+                print('prd_k = {}:'.format(prd_k))
+
+                recalls = {20: 0, 50: 0, 100: 0}
                 all_gt_cnt = 0
+                topk_dets = []
+                for im_i, res in enumerate(tqdm(all_results)):
+                    # in oi_all_rel some images have no dets
+                    if res['prd_scores'] is None:
+                        det_boxes_s_top = np.zeros((0, 4), dtype=np.float32)
+                        det_boxes_o_top = np.zeros((0, 4), dtype=np.float32)
+                        det_labels_s_top = np.zeros(0, dtype=np.int32)
+                        det_labels_p_top = np.zeros(0, dtype=np.int32)
+                        det_labels_o_top = np.zeros(0, dtype=np.int32)
+                        det_scores_top = np.zeros(0, dtype=np.float32)
+                    else:
+                        det_boxes_sbj = res['sbj_boxes']  # (#num_rel, 4)
+                        det_boxes_obj = res['obj_boxes']  # (#num_rel, 4)
+                        det_labels_sbj = res['sbj_labels']  # (#num_rel,)
+                        det_labels_obj = res['obj_labels']  # (#num_rel,)
+                        det_scores_sbj = res['sbj_scores']  # (#num_rel,)
+                        det_scores_obj = res['obj_scores']  # (#num_rel,)
+                        det_scores_prd = res['prd_scores'][:, 1:]
 
-            topk_dets = []
-            for im_i, res in enumerate(tqdm(all_results)):
+                        det_labels_prd = np.argsort(-det_scores_prd, axis=1)
+                        det_scores_prd = -np.sort(-det_scores_prd, axis=1)
 
-                # in oi_all_rel some images have no dets
-                if res['prd_scores'] is None:
-                    det_boxes_s_top = np.zeros((0, 4), dtype=np.float32)
-                    det_boxes_o_top = np.zeros((0, 4), dtype=np.float32)
-                    det_labels_s_top = np.zeros(0, dtype=np.int32)
-                    det_labels_p_top = np.zeros(0, dtype=np.int32)
-                    det_labels_o_top = np.zeros(0, dtype=np.int32)
-                    det_scores_top = np.zeros(0, dtype=np.float32)
-                else:
-                    det_boxes_sbj = res['sbj_boxes']  # (#num_rel, 4)
-                    det_boxes_obj = res['obj_boxes']  # (#num_rel, 4)
-                    det_labels_sbj = res['sbj_labels']  # (#num_rel,)
-                    det_labels_obj = res['obj_labels']  # (#num_rel,)
-                    det_scores_sbj = res['sbj_scores']  # (#num_rel,)
-                    det_scores_obj = res['obj_scores']  # (#num_rel,)
-                    det_scores_prd = res['prd_scores'][:, 1:]
+                        det_scores_so = det_scores_sbj * det_scores_obj
+                        det_scores_spo = det_scores_so[:, None] * det_scores_prd[:, :prd_k]
+                        # det_scores_spo = det_scores_prd[:, :prd_k]
+                        det_scores_inds = argsort_desc(det_scores_spo)[:topk]
+                        det_scores_top = det_scores_spo[det_scores_inds[:, 0], det_scores_inds[:, 1]]
+                        det_boxes_so_top = np.hstack(
+                            (det_boxes_sbj[det_scores_inds[:, 0]], det_boxes_obj[det_scores_inds[:, 0]]))
+                        det_labels_p_top = det_labels_prd[det_scores_inds[:, 0], det_scores_inds[:, 1]]
+                        det_labels_spo_top = np.vstack(
+                            (det_labels_sbj[det_scores_inds[:, 0]], det_labels_p_top, det_labels_obj[det_scores_inds[:, 0]])).transpose()
 
-                    det_labels_prd = np.argsort(-det_scores_prd, axis=1)
-                    det_scores_prd = -np.sort(-det_scores_prd, axis=1)
+                        det_boxes_s_top = det_boxes_so_top[:, :4]
+                        det_boxes_o_top = det_boxes_so_top[:, 4:]
+                        det_labels_s_top = det_labels_spo_top[:, 0]
+                        det_labels_p_top = det_labels_spo_top[:, 1]
+                        det_labels_o_top = det_labels_spo_top[:, 2]
 
-                    det_scores_so = det_scores_sbj * det_scores_obj
-                    det_scores_spo = det_scores_so[:, None] * det_scores_prd[:, :prd_k]
-                    # det_scores_spo = det_scores_prd[:, :prd_k]
-                    det_scores_inds = argsort_desc(det_scores_spo)[:topk]
-                    det_scores_top = det_scores_spo[det_scores_inds[:, 0], det_scores_inds[:, 1]]
-                    det_boxes_so_top = np.hstack(
-                        (det_boxes_sbj[det_scores_inds[:, 0]], det_boxes_obj[det_scores_inds[:, 0]]))
-                    det_labels_p_top = det_labels_prd[det_scores_inds[:, 0], det_scores_inds[:, 1]]
-                    det_labels_spo_top = np.vstack(
-                        (det_labels_sbj[det_scores_inds[:, 0]], det_labels_p_top, det_labels_obj[det_scores_inds[:, 0]])).transpose()
-
-#                     cand_inds = np.where(det_scores_top > cfg.TEST.SPO_SCORE_THRESH)[0]
-#                     det_boxes_so_top = det_boxes_so_top[cand_inds]
-#                     det_labels_spo_top = det_labels_spo_top[cand_inds]
-#                     det_scores_top = det_scores_top[cand_inds]
-
-                    det_boxes_s_top = det_boxes_so_top[:, :4]
-                    det_boxes_o_top = det_boxes_so_top[:, 4:]
-                    det_labels_s_top = det_labels_spo_top[:, 0]
-                    det_labels_p_top = det_labels_spo_top[:, 1]
-                    det_labels_o_top = det_labels_spo_top[:, 2]
-
-                topk_dets.append(dict(image=res['image'],
-                                      det_boxes_s_top=det_boxes_s_top,
-                                      det_boxes_o_top=det_boxes_o_top,
-                                      det_labels_s_top=det_labels_s_top,
-                                      det_labels_p_top=det_labels_p_top,
-                                      det_labels_o_top=det_labels_o_top,
-                                      det_scores_top=det_scores_top))
-
-                if do_val:
+                    topk_dets.append(dict(image=res['image'],
+                                          det_boxes_s_top=det_boxes_s_top,
+                                          det_boxes_o_top=det_boxes_o_top,
+                                          det_labels_s_top=det_labels_s_top,
+                                          det_labels_p_top=det_labels_p_top,
+                                          det_labels_o_top=det_labels_o_top,
+                                          det_scores_top=det_scores_top))
+                    
                     gt_boxes_sbj = res['gt_sbj_boxes']  # (#num_gt, 4)
                     gt_boxes_obj = res['gt_obj_boxes']  # (#num_gt, 4)
                     gt_labels_sbj = res['gt_sbj_labels']  # (#num_gt,)
@@ -140,11 +132,63 @@ def eval_rel_results(all_results, output_dir, do_val):
                                               gt_labels_sbj=gt_labels_sbj,
                                               gt_labels_obj=gt_labels_obj,
                                               gt_labels_prd=gt_labels_prd))
-
-            if do_val:
                 for k in recalls:
                     recalls[k] = float(recalls[k]) / (float(all_gt_cnt) + 1e-12)
                 print_stats(recalls)
+    else:
+        prd_k = 2
+        topk_dets = []
+        for im_i, res in enumerate(tqdm(all_results)):
+            # in oi_all_rel some images have no dets
+            if res['prd_scores'] is None:
+                det_boxes_s_top = np.zeros((0, 4), dtype=np.float32)
+                det_boxes_o_top = np.zeros((0, 4), dtype=np.float32)
+                det_labels_s_top = np.zeros(0, dtype=np.int32)
+                det_labels_p_top = np.zeros(0, dtype=np.int32)
+                det_labels_o_top = np.zeros(0, dtype=np.int32)
+                det_scores_top = np.zeros(0, dtype=np.float32)
+            else:
+                det_boxes_sbj = res['sbj_boxes']  # (#num_rel, 4)
+                det_boxes_obj = res['obj_boxes']  # (#num_rel, 4)
+                det_labels_sbj = res['sbj_labels']  # (#num_rel,)
+                det_labels_obj = res['obj_labels']  # (#num_rel,)
+                det_scores_sbj = res['sbj_scores']  # (#num_rel,)
+                det_scores_obj = res['obj_scores']  # (#num_rel,)
+                det_scores_prd = res['prd_scores'][:, 1:]
+
+                det_labels_prd = np.argsort(-det_scores_prd, axis=1)
+                det_scores_prd = -np.sort(-det_scores_prd, axis=1)
+
+                det_scores_so = det_scores_sbj * det_scores_obj
+                det_scores_spo = det_scores_so[:, None] * det_scores_prd[:, :prd_k]
+                # det_scores_spo = det_scores_prd[:, :prd_k]
+                det_scores_inds = argsort_desc(det_scores_spo)[:topk]
+                det_scores_top = det_scores_spo[det_scores_inds[:, 0], det_scores_inds[:, 1]]
+                det_boxes_so_top = np.hstack(
+                    (det_boxes_sbj[det_scores_inds[:, 0]], det_boxes_obj[det_scores_inds[:, 0]]))
+                det_labels_p_top = det_labels_prd[det_scores_inds[:, 0], det_scores_inds[:, 1]]
+                det_labels_spo_top = np.vstack(
+                    (det_labels_sbj[det_scores_inds[:, 0]], det_labels_p_top, det_labels_obj[det_scores_inds[:, 0]])).transpose()
+
+                det_boxes_s_top = det_boxes_so_top[:, :4]
+                det_boxes_o_top = det_boxes_so_top[:, 4:]
+                det_labels_s_top = det_labels_spo_top[:, 0]
+                det_labels_p_top = det_labels_spo_top[:, 1]
+                det_labels_o_top = det_labels_spo_top[:, 2]
+
+            topk_dets.append(dict(image=res['image'],
+                                  det_boxes_s_top=det_boxes_s_top,
+                                  det_boxes_o_top=det_boxes_o_top,
+                                  det_labels_s_top=det_labels_s_top,
+                                  det_labels_p_top=det_labels_p_top,
+                                  det_labels_o_top=det_labels_o_top,
+                                  det_scores_top=det_scores_top))
+        print('Saving topk dets...')
+        topk_dets_f = os.path.join(output_dir, 'rel_detections_topk.pkl')
+        with open(topk_dets_f, 'wb') as f:
+            pickle.dump(topk_dets, f, pickle.HIGHEST_PROTOCOL)
+        logger.info('topk_dets size: {}'.format(len(topk_dets)))
+        print('Done.')
 
 
 def print_stats(recalls):

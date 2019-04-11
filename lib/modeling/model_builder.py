@@ -111,7 +111,7 @@ class Generalized_RCNN(nn.Module):
             if getattr(self.Keypoint_Head, 'SHARE_RES5', False):
                 self.Keypoint_Head.share_res5_module(self.Box_Head.res5)
             self.Keypoint_Outs = keypoint_rcnn_heads.keypoint_outputs(self.Keypoint_Head.dim_out)
-
+            
         self._init_modules()
 
     def _init_modules(self):
@@ -138,32 +138,11 @@ class Generalized_RCNN(nn.Module):
             del checkpoint['model']['Box_Outs.bbox_pred.weight']
             del checkpoint['model']['Box_Outs.bbox_pred.bias']
             net_utils.load_ckpt(self, checkpoint['model'])
-        
-        # load pretrained weights on OpenImages for resnet
-        if cfg.RESNETS.OI_PRETRAINED_WEIGHTS != '':
-            logger.info("loading pretrained weights on OI from %s", cfg.RESNETS.OI_PRETRAINED_WEIGHTS)
-            checkpoint = torch.load(cfg.RESNETS.OI_PRETRAINED_WEIGHTS, map_location=lambda storage, loc: storage)
-            # not using the last softmax layers
-            del checkpoint['model']['Box_Outs.cls_score.weight']
-            del checkpoint['model']['Box_Outs.cls_score.bias']
-            del checkpoint['model']['Box_Outs.bbox_pred.weight']
-            del checkpoint['model']['Box_Outs.bbox_pred.bias']
-            net_utils.load_ckpt(self, checkpoint['model'])
-        # load pretrained weights on OpenImages for resnet
-        if cfg.VGG16.OI_PRETRAINED_WEIGHTS != '':
-            logger.info("loading pretrained weights on OI from %s", cfg.VGG16.OI_PRETRAINED_WEIGHTS)
-            checkpoint = torch.load(cfg.VGG16.OI_PRETRAINED_WEIGHTS, map_location=lambda storage, loc: storage)
-            # not using the last softmax layers
-            del checkpoint['model']['Box_Outs.cls_score.weight']
-            del checkpoint['model']['Box_Outs.cls_score.bias']
-            del checkpoint['model']['Box_Outs.bbox_pred.weight']
-            del checkpoint['model']['Box_Outs.bbox_pred.bias']
-            net_utils.load_ckpt(self, checkpoint['model'])
             
-        if cfg.RESNETS.TO_BE_FINETUNED_WEIGHTS != '':
-            logger.info("loading trained and to be finetuned weights from %s", cfg.RESNETS.TO_BE_FINETUNED_WEIGHTS)
-            checkpoint = torch.load(cfg.RESNETS.TO_BE_FINETUNED_WEIGHTS, map_location=lambda storage, loc: storage)
-            net_utils.load_ckpt(self, checkpoint['model'])
+        # if cfg.RESNETS.TO_BE_FINETUNED_WEIGHTS != '':
+        #     logger.info("loading trained and to be finetuned weights from %s", cfg.RESNETS.TO_BE_FINETUNED_WEIGHTS)
+        #     checkpoint = torch.load(cfg.RESNETS.TO_BE_FINETUNED_WEIGHTS, map_location=lambda storage, loc: storage)
+        #     net_utils.load_ckpt(self, checkpoint['model'])
 
         if cfg.TRAIN.FREEZE_CONV_BODY:
             for p in self.Conv_Body.parameters():

@@ -61,28 +61,6 @@ DATASETS = {
         ANN_FN3:
             _DATA_DIR + '/vg/predicates.json',
     },
-    # VG80k dataset
-    'vg80k_train': {
-        IM_DIR:
-            _DATA_DIR + '/vg/VG_100K',
-        ANN_FN:
-            _DATA_DIR + '/vg_80k/detections_train.json',
-        ANN_FN2:
-            _DATA_DIR + '/vg_80k/rel_annotations_train.json',
-        ANN_FN3:
-            _DATA_DIR + '/vg_80k/predicates.json',
-    },
-    # for now vg_val is identical to vg_test
-    'vg80k_val': {
-        IM_DIR:
-            _DATA_DIR + '/vg/VG_100K',
-        ANN_FN:
-            _DATA_DIR + '/vg_80k/detections_val.json',
-        ANN_FN2:
-            _DATA_DIR + '/vg_80k/rel_annotations_val.json',
-        ANN_FN3:
-            _DATA_DIR + '/vg_80k/predicates.json',
-    },
     # VRD dataset
     'vrd_train': {
         IM_DIR:
@@ -103,5 +81,241 @@ DATASETS = {
             _DATA_DIR + '/vrd/new_annotations_val.json',
         ANN_FN3:
             _DATA_DIR + '/vrd/predicates.json',
+    },
+    # tvqa bbt dataset
+    'tvqa_vg_bbt_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_bbt_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_bbt_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_bbt_2nd_of_3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_bbt_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_bbt_2nd_of_3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_bbt1_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_bbt_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_bbt1_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_bbt2_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_bbt_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_bbt2_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    # tvqa house dataset
+    'tvqa_vg_house_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_house_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_house_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_house_2nd_of_3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_house_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_house_2nd_of_3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_house1_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_house_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_house1_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_house2_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_house_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_house2_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_house3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_house_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_house3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    # tvqa castle dataset
+    'tvqa_vg_castle_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_castle_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_castle_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_castle_2nd_of_3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_castle_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_castle_2nd_of_3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_castle1_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_castle_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_castle1_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_castle2_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_castle_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_castle2_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_castle3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_castle_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_castle3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    # tvqa friends dataset
+    'tvqa_vg_friends_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_friends_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_friends_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_friends_2nd_of_3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_friends_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_friends_2nd_of_3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_friends1_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_friends_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_friends1_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_friends2_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_friends_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_friends2_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_friends3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_friends_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_friends3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    # tvqa grey dataset
+    'tvqa_vg_grey_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_grey_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_grey_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_grey_2nd_of_3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_grey_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_grey_2nd_of_3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    # tvqa met dataset
+    'tvqa_vg_met_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_met_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_met_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
+    },
+    'tvqa_vg_met_2nd_of_3_test': {
+        IM_DIR:
+            _DATA_DIR + '/tvqa/tvqa_all_frames',
+        ANN_FN:
+            _DATA_DIR + '/tvqa/dummy_met_vg_detections_test.json',
+        ANN_FN2:
+            _DATA_DIR + '/tvqa/dummy_met_2nd_of_3_vg_rel_annotations_test.json',
+        ANN_FN3:
+            _DATA_DIR + '/vg/predicates.json',
     },
 }

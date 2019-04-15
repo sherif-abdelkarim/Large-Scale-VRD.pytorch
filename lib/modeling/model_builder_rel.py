@@ -147,6 +147,8 @@ class Generalized_RCNN(nn.Module):
         self.mapping_to_detectron = None
         self.orphans_in_detectron = None
 
+        self.use_gt_boxes = True  # a temporary setting
+
         # Backbone for feature extraction
         self.Conv_Body = get_func(cfg.MODEL.CONV_BODY)()
 
@@ -240,6 +242,11 @@ class Generalized_RCNN(nn.Module):
     def load_detector_weights(self, weight_name):
         logger.info("loading pretrained weights from %s", weight_name)
         checkpoint = torch.load(weight_name, map_location=lambda storage, loc: storage)
+        if self.use_gt_boxes:
+            del checkpoint['model']['Box_Outs.cls_score.weight']
+            del checkpoint['model']['Box_Outs.cls_score.bias']
+            del checkpoint['model']['Box_Outs.bbox_pred.weight']
+            del checkpoint['model']['Box_Outs.bbox_pred.bias']
         net_utils.load_ckpt(self, checkpoint['model'])
         # freeze everything above the rel module
         for p in self.Conv_Body.parameters():

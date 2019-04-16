@@ -22,8 +22,6 @@ class reldn_head(nn.Module):
     def __init__(self, dim_in, all_obj_vecs=None, all_prd_vecs=None):
         super().__init__()
             
-        num_prd_classes = cfg.MODEL.NUM_PRD_CLASSES + 1
-            
         if cfg.MODEL.RUN_BASELINE:
             # only run it on testing mode
             self.freq_bias = FrequencyBias(cfg.TEST.DATASETS[0])

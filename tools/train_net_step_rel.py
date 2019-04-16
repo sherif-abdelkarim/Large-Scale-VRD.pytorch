@@ -159,7 +159,7 @@ def main():
         cfg.TRAIN.DATASETS = ('vg_train',)
         cfg.MODEL.NUM_CLASSES = 151
         cfg.MODEL.NUM_PRD_CLASSES = 50  # exclude background
-    elif args.dataset == "vg_80k":
+    elif args.dataset == "vg80k":
         cfg.TRAIN.DATASETS = ('vg80k_train',)
         cfg.MODEL.NUM_CLASSES = 53304
         cfg.MODEL.NUM_PRD_CLASSES = 29086  # exclude background

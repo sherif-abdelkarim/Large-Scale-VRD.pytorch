@@ -94,7 +94,7 @@ if __name__ == '__main__':
         cfg.TEST.DATASETS = ('vrd_val',)
         cfg.MODEL.NUM_CLASSES = 101
         cfg.MODEL.NUM_PRD_CLASSES = 70  # exclude background
-    elif args.dataset == "vg_80k":
+    elif args.dataset == "vg80k":
         cfg.TEST.DATASETS = ('vg80k_val',)
         cfg.MODEL.NUM_CLASSES = 53304
         cfg.MODEL.NUM_PRD_CLASSES = 29086  # exclude background

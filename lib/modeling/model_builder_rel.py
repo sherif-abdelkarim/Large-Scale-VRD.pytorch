@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _augment_gt_boxes_by_perturbation(unique_gt_boxes, im_width, im_height):
     num_gt = unique_gt_boxes.shape[0]
-    num_rois = 100
+    num_rois = 30
     rois = np.zeros((num_rois, 4), dtype=np.float32)
     cnt = 0
     for i in range(num_gt):
@@ -110,6 +110,11 @@ def get_obj_prd_vecs(dataset_name):
             obj_cats = json.load(f)
         with open(cfg.DATA_DIR + '/vrd/predicates.json') as f:
             prd_cats = json.load(f)
+    elif dataset_name.find('vg80k') >= 0:
+        with open(cfg.DATA_DIR + '/vg80k/objects.json') as f:
+            obj_cats = json.load(f)
+        with open(cfg.DATA_DIR + '/vg80k/predicates.json') as f:
+            prd_cats = json.load(f)
     elif dataset_name.find('vg') >= 0:
         with open(cfg.DATA_DIR + '/vg/objects.json') as f:
             obj_cats = json.load(f)
@@ -153,7 +158,7 @@ class Generalized_RCNN(nn.Module):
         self.Conv_Body = get_func(cfg.MODEL.CONV_BODY)()
 
         # Region Proposal Network
-        if cfg.RPN.RPN_ON:
+        if not self.use_gt_boxes and cfg.RPN.RPN_ON:
             self.RPN = rpn_heads.generic_rpn_outputs(
                 self.Conv_Body.dim_out, self.Conv_Body.spatial_scale)
             
@@ -173,13 +178,16 @@ class Generalized_RCNN(nn.Module):
 
         # BBOX Branch
         self.Box_Head = get_func(cfg.FAST_RCNN.ROI_BOX_HEAD)(
-            self.RPN.dim_out, self.roi_feature_transform, self.Conv_Body.spatial_scale)
-        self.Box_Outs = fast_rcnn_heads.fast_rcnn_outputs(
-            self.Box_Head.dim_out)
+            self.Conv_Body.dim_out, self.roi_feature_transform, self.Conv_Body.spatial_scale) 
+            # self.RPN.dim_out, self.roi_feature_transform, self.Conv_Body.spatial_scale)
+        if not self.use_gt_boxes:
+            self.Box_Outs = fast_rcnn_heads.fast_rcnn_outputs(
+                self.Box_Head.dim_out)
             
         self.Prd_RCNN = copy.deepcopy(self)
-        del self.Prd_RCNN.RPN
-        del self.Prd_RCNN.Box_Outs
+        if not self.use_gt_boxes:
+            del self.Prd_RCNN.RPN
+            del self.Prd_RCNN.Box_Outs
         
         # initialize word vectors
         ds_name = cfg.TRAIN.DATASETS[0] if len(cfg.TRAIN.DATASETS) else cfg.TEST.DATASETS[0]
@@ -251,13 +259,15 @@ class Generalized_RCNN(nn.Module):
         # freeze everything above the rel module
         for p in self.Conv_Body.parameters():
             p.requires_grad = False
-        for p in self.RPN.parameters():
-            p.requires_grad = False
+        if not self.use_gt_boxes:
+            for p in self.RPN.parameters():
+                p.requires_grad = False
         if not cfg.MODEL.UNFREEZE_DET:
             for p in self.Box_Head.parameters():
                 p.requires_grad = False
-            for p in self.Box_Outs.parameters():
-                p.requires_grad = False
+            if not self.use_gt_boxes:
+                for p in self.Box_Outs.parameters():
+                    p.requires_grad = False
 
     def forward(self, data, im_info, dataset_name=None, roidb=None, use_gt_labels=False, use_gt_boxes=True, **rpn_kwargs):
         if cfg.PYTORCH_VERSION_LESS_THAN_040:
@@ -282,19 +292,20 @@ class Generalized_RCNN(nn.Module):
         blob_conv = self.Conv_Body(im_data)
         blob_conv_prd = self.Prd_RCNN.Conv_Body(im_data)
 
-        rpn_ret = self.RPN(blob_conv, im_info, roidb)
-        
         if cfg.FPN.FPN_ON:
             # Retain only the blobs that will be used for RoI heads. `blob_conv` may include
             # extra blobs that are used for RPN proposals, but not for RoI heads.
             blob_conv = blob_conv[-self.num_roi_levels:]
             blob_conv_prd = blob_conv_prd[-self.num_roi_levels:]
 
-        if cfg.MODEL.SHARE_RES5 and self.training:
-            box_feat, res5_feat = self.Box_Head(blob_conv, rpn_ret, use_relu=True)
-        else:
-            box_feat = self.Box_Head(blob_conv, rpn_ret, use_relu=True)
-        cls_score, bbox_pred = self.Box_Outs(box_feat)
+        if not use_gt_boxes:
+            rpn_ret = self.RPN(blob_conv, im_info, roidb)
+        
+            if cfg.MODEL.SHARE_RES5 and self.training:
+                box_feat, res5_feat = self.Box_Head(blob_conv, rpn_ret, use_relu=True)
+            else:
+                box_feat = self.Box_Head(blob_conv, rpn_ret, use_relu=True)
+            cls_score, bbox_pred = self.Box_Outs(box_feat)
         
         # now go through the predicate branch
         use_relu = False if cfg.MODEL.NO_FC7_RELU else True
@@ -324,7 +335,8 @@ class Generalized_RCNN(nn.Module):
             sbj_feat = self.Box_Head(blob_conv, rel_ret, rois_name='sbj_rois', use_relu=use_relu)
             obj_feat = self.Box_Head(blob_conv, rel_ret, rois_name='obj_rois', use_relu=use_relu)
         else:
-            if roidb is not None:
+            # if roidb is not None:
+            if use_gt_boxes:
                 im_scale = im_info.data.numpy()[:, 2][0]
                 im_w = im_info.data.numpy()[:, 1][0]
                 im_h = im_info.data.numpy()[:, 0][0]
@@ -434,26 +446,26 @@ class Generalized_RCNN(nn.Module):
         if self.training:
             return_dict['losses'] = {}
             return_dict['metrics'] = {}
-            # rpn loss
-            rpn_kwargs.update(dict(
-                (k, rpn_ret[k]) for k in rpn_ret.keys()
-                if (k.startswith('rpn_cls_logits') or k.startswith('rpn_bbox_pred'))
-            ))
-            loss_rpn_cls, loss_rpn_bbox = rpn_heads.generic_rpn_losses(**rpn_kwargs)
-            if cfg.FPN.FPN_ON:
-                for i, lvl in enumerate(range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1)):
-                    return_dict['losses']['loss_rpn_cls_fpn%d' % lvl] = loss_rpn_cls[i]
-                    return_dict['losses']['loss_rpn_bbox_fpn%d' % lvl] = loss_rpn_bbox[i]
-            else:
-                return_dict['losses']['loss_rpn_cls'] = loss_rpn_cls
-                return_dict['losses']['loss_rpn_bbox'] = loss_rpn_bbox
-            # bbox loss
-            loss_cls, loss_bbox, accuracy_cls = fast_rcnn_heads.fast_rcnn_losses(
-                cls_score, bbox_pred, rpn_ret['labels_int32'], rpn_ret['bbox_targets'],
-                rpn_ret['bbox_inside_weights'], rpn_ret['bbox_outside_weights'])
-            return_dict['losses']['loss_cls'] = loss_cls
-            return_dict['losses']['loss_bbox'] = loss_bbox
-            return_dict['metrics']['accuracy_cls'] = accuracy_cls
+            # # rpn loss
+            # rpn_kwargs.update(dict(
+            #     (k, rpn_ret[k]) for k in rpn_ret.keys()
+            #     if (k.startswith('rpn_cls_logits') or k.startswith('rpn_bbox_pred'))
+            # ))
+            # loss_rpn_cls, loss_rpn_bbox = rpn_heads.generic_rpn_losses(**rpn_kwargs)
+            # if cfg.FPN.FPN_ON:
+            #     for i, lvl in enumerate(range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1)):
+            #         return_dict['losses']['loss_rpn_cls_fpn%d' % lvl] = loss_rpn_cls[i]
+            #         return_dict['losses']['loss_rpn_bbox_fpn%d' % lvl] = loss_rpn_bbox[i]
+            # else:
+            #     return_dict['losses']['loss_rpn_cls'] = loss_rpn_cls
+            #     return_dict['losses']['loss_rpn_bbox'] = loss_rpn_bbox
+            # # bbox loss
+            # loss_cls, loss_bbox, accuracy_cls = fast_rcnn_heads.fast_rcnn_losses(
+            #     cls_score, bbox_pred, rpn_ret['labels_int32'], rpn_ret['bbox_targets'],
+            #     rpn_ret['bbox_inside_weights'], rpn_ret['bbox_outside_weights'])
+            # return_dict['losses']['loss_cls'] = loss_cls
+            # return_dict['losses']['loss_bbox'] = loss_bbox
+            # return_dict['metrics']['accuracy_cls'] = accuracy_cls
             
             loss_cls_prd, accuracy_cls_prd = reldn_heads.reldn_losses(
                 prd_cls_scores, rel_ret['all_prd_labels_int32'])

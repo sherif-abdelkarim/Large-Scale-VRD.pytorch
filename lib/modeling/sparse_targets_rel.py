@@ -8,9 +8,20 @@ from six.moves import cPickle as pickle
 
 from core.config import cfg
 from modeling.get_dataset_counts_rel import get_rel_counts
-
+import sparray
+import sparse
 
 logger = logging.getLogger(__name__)
+
+
+# def add_one_to_bg(arr):
+# 	keys = arr.__data.keys()
+
+def concatenate_sp(arr1, arr2):
+    for i in arr1.shape[0]:
+        for j in arr1.shape[1]:
+            arr1[i, j, 0] = arr2[i, j]
+    return arr1
 
 
 class FrequencyBias(nn.Module):
@@ -33,11 +44,11 @@ class FrequencyBias(nn.Module):
             must_overlap = True
         else:
             must_overlap = False
-        fg_matrix, bg_matrix = get_rel_counts(ds_name, must_overlap=must_overlap)
-        bg_matrix += 1
-        fg_matrix[:, :, 0] = bg_matrix
+        sparse_fg_matrix, sparse_bg_matrix = get_rel_counts(ds_name, must_overlap=must_overlap)
+        sparse_bg_matrix += 1
+        sparse_fg_matrix = sparse.COO(concatenate_sp(sparse.DOK(sparse_fg_matrix), sparse.DOK(sparse_bg_matrix)))
 
-        pred_dist = np.log(fg_matrix / (fg_matrix.sum(2)[:, :, None] + 1e-08) + eps)
+        pred_dist = np.log(sparse_fg_matrix / (sparse_fg_matrix.sum(2)[:, :, None] + 1e-08) + eps)
 
         self.num_objs = pred_dist.shape[0]
         pred_dist = torch.FloatTensor(pred_dist).view(-1, pred_dist.shape[2])
